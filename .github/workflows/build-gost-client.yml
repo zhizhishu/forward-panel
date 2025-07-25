@@ -1,0 +1,66 @@
+# GitHub Actions 工作流配置文件
+# 功能：自动编译 forward-panel 的 gost 客户端，并提供多架构版本下载
+
+name: Build Gost Panel Client
+
+# 触发条件：允许在GitHub页面的Actions标签中手动触发此工作流
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    # 运行环境：使用最新的Ubuntu服务器
+    runs-on: ubuntu-latest
+
+    steps:
+      # 步骤1: 检出代码
+      # 使用您Fork后的仓库代码
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 步骤2: 设置Go语言环境
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21' # 使用一个较新的Go版本
+
+      # 步骤3: 进入客户端源码目录
+      - name: Change to go-gost directory
+        run: cd go-gost
+
+      # 步骤4: 编译多个架构版本
+      # 我们将为 amd64, arm64, armv7 三个主流Linux架构进行编译
+      - name: Build for multiple architectures
+        run: |
+          # 进入源码目录
+          cd go-gost
+          
+          # 下载依赖
+          echo "Fetching Go modules..."
+          go mod tidy
+          
+          # 创建输出目录
+          mkdir -p release
+          
+          # 编译 AMD64 (普通服务器)
+          echo "Building for linux/amd64..."
+          GOOS=linux GOARCH=amd64 go build -o release/gost-amd64
+          
+          # 编译 ARM64 (64位ARM设备，如当前主流手机)
+          echo "Building for linux/arm64..."
+          GOOS=linux GOARCH=arm64 go build -o release/gost-arm64
+          
+          # 编译 ARMv7 (32位ARM设备)
+          echo "Building for linux/arm..."
+          GOOS=linux GOARCH=arm go build -o release/gost-armv7
+          
+          echo "Build complete."
+          ls -l release/
+
+      # 步骤5: 上传编译产物
+      # 将 release 目录下的所有文件打包成一个名为 gost-clients.zip 的产物
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gost-clients
+          path: go-gost/release/
